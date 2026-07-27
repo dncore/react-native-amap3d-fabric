@@ -1,9 +1,11 @@
 package qiuxiang.amap3d.map_view
 
 import android.annotation.SuppressLint
+import android.view.MotionEvent
 import android.view.View
 import com.amap.api.maps.AMap
 import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.TextureMapView
 import com.amap.api.maps.model.CameraPosition
 import com.amap.api.maps.model.Marker
@@ -16,6 +18,7 @@ import com.facebook.react.uimanager.ThemedReactContext
 import qiuxiang.amap3d.getFloat
 import qiuxiang.amap3d.toJson
 import qiuxiang.amap3d.toLatLng
+import qiuxiang.amap3d.toLatLngList
 import qiuxiang.amap3d.toPoint
 
 @SuppressLint("ViewConstructor")
@@ -35,7 +38,7 @@ class MapView(context: ThemedReactContext) : TextureMapView(context) {
     locationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
     map.myLocationStyle = locationStyle
 
-    map.setOnMapLoadedListener { emit(id, "onLoad") }
+    map.setOnMapLoadedListener { emit(id, "onLoad"); tryDrawRoute() }
     map.setOnMapClickListener { latLng -> emit(id, "onPress", latLng.toJson()) }
     map.setOnPOIClickListener { poi -> emit(id, "onPressPoi", poi.toJson()) }
     map.setOnMapLongClickListener { latLng -> emit(id, "onLongPress", latLng.toJson()) }
@@ -91,6 +94,18 @@ class MapView(context: ThemedReactContext) : TextureMapView(context) {
       if (it.time > 0) {
         emit(id, "onLocation", it.toJson())
       }
+    }
+
+    // Prevent parent ScrollView from intercepting map gestures.
+    // OnTouchListener fires before onTouchEvent; returning false lets
+    // TextureMapView's own touch handling proceed normally.
+    setOnTouchListener { _, event ->
+      when (event.action and MotionEvent.ACTION_MASK) {
+        MotionEvent.ACTION_DOWN -> parent?.requestDisallowInterceptTouchEvent(true)
+        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+          parent?.requestDisallowInterceptTouchEvent(false)
+      }
+      false
     }
   }
 
@@ -151,7 +166,54 @@ class MapView(context: ThemedReactContext) : TextureMapView(context) {
     }
   }
 
-  fun call(args: ReadableArray?) {
+
+
+  private var pendingRouteJson: String? = null
+
+  fun setRenderFps(fps: Int) {
+    map.setRenderFps(fps)
+  }
+
+  fun setLogoEnabled(enabled: Boolean) {
+    if (!enabled) {
+      // Push the AMap logo off-screen using the official UiSettings margin APIs.
+      // setLogoCenter may be clamped; negative margins are more reliable.
+      // Do NOT call showMapText(false) — that hides all street/place labels.
+      map.uiSettings.setLogoLeftMargin(-2000)
+      map.uiSettings.setLogoBottomMargin(-2000)
+    }
+  }
+
+  fun setRouteData(json: String) {
+    pendingRouteJson = json
+    tryDrawRoute()
+  }
+
+  private fun tryDrawRoute() {
+    val json = pendingRouteJson ?: return
+    try {
+      val arr = com.facebook.react.bridge.Arguments.createArray()
+      val parsed = org.json.JSONArray(json)
+      for (i in 0 until parsed.length()) {
+        val pt = parsed.getJSONObject(i)
+        arr.pushMap(com.facebook.react.bridge.Arguments.createMap().apply {
+          putDouble("latitude", pt.getDouble("latitude"))
+          putDouble("longitude", pt.getDouble("longitude"))
+        })
+      }
+      val points = arr.toLatLngList()
+      if (points.isEmpty()) return
+      val opts = com.amap.api.maps.model.PolylineOptions()
+        .addAll(points)
+        .color(0xff1F78FF.toInt())
+        .width(12f)
+        .geodesic(true)
+      map.addPolyline(opts)
+      pendingRouteJson = null
+    } catch(e: Exception) {
+      e.printStackTrace()
+    }
+  }  fun call(args: ReadableArray?) {
     val id = args?.getDouble(0)!!
     when (args.getString(1)) {
       "getLatLng" -> callback(

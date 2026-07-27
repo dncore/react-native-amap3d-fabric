@@ -30,4 +30,8 @@ internal class MultiPointManager : SimpleViewManager<MultiPoint>() {
   fun setIcon(multiPoint: MultiPoint, icon: ReadableMap?) {
     icon?.let { multiPoint.setIcon(it) }
   }
+  // Fabric compatibility
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
+  }
 }

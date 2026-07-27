@@ -1,14 +1,16 @@
 {
-  "name": "react-native-amap3d",
-  "version": "0.0.0",
-  "description": "react-native 高德地图组件，支持 Android + iOS",
+  "name": "react-native-amap3d-fabric",
+  "version": "3.2.4-fabric.1",
+  "description": "React Native 高德地图组件，支持 Fabric (newArchEnabled=true)，Android + iOS",
   "author": "7c00 <i@7c00.cc>",
   "license": "MIT",
   "keywords": [
     "react-native",
     "amap",
     "maps",
-    "mapview"
+    "mapview",
+    "fabric",
+    "new-architecture"
   ],
   "main": "lib/src",
   "files": [
@@ -17,12 +19,12 @@
     "lib/android/build.gradle",
     "lib/ios",
     "react-native.config.js",
-    "react-native-amap3d.podspec"
+    "react-native-amap3d-fabric.podspec"
   ],
-  "homepage": "https://github.com/qiuxiang/react-native-amap3d",
+  "homepage": "https://github.com/dncore/react-native-amap3d-fabric",
   "repository": {
     "type": "git",
-    "url": "https://github.com/qiuxiang/react-native-amap3d"
+    "url": "https://github.com/dncore/react-native-amap3d-fabric"
   },
   "scripts": {
     "start": "react-native start",

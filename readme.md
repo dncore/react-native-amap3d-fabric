@@ -1,185 +1,135 @@
-# react-native-amap3d [![][version-badge]][npm] [![](https://github.com/qiuxiang/react-native-amap3d/actions/workflows/build.yml/badge.svg)](https://github.com/qiuxiang/react-native-amap3d/actions/workflows/build.yml)
+# react-native-amap3d-fabric
 
-**注意：该项目目前只维护，不加新功能。**
+> React Native 高德地图组件，支持 **Fabric (newArchEnabled=true)**。
+>
+> **[react-native-amap3d](https://github.com/qiuxiang/react-native-amap3d) 的 Fabric 兼容 Fork，原作者 [7c00](https://github.com/qiuxiang)。**
 
-react-native 高德地图组件，使用最新 3D SDK，支持 Android + iOS，受 [react-native-maps](https://github.com/airbnb/react-native-maps) 启发，提供功能丰富且易用的接口。
+[![version-badge]][npm]
+[![](https://img.shields.io/badge/arch-fabric-blue)]()
+[![license](https://img.shields.io/npm/l/react-native-amap3d-fabric.svg)](./license)
 
-相关项目推荐：
+## 为什么有这个 Fork
 
-- [react-native-baidumap-sdk（百度地图 SDK）](https://github.com/qiuxiang/react-native-baidumap-sdk)
-- [react-native-amap-geolocation（高德地图定位模块）](https://github.com/qiuxiang/react-native-amap-geolocation)
+上游 [react-native-amap3d](https://github.com/qiuxiang/react-native-amap3d) 已超过 3 年未更新，不支持 React Native 新架构 (Fabric)。当 `newArchEnabled=true` 时，Fabric interop 层为每个 `ViewManager` 生成 view config，调用 `getExportedCustomDirectEventTypeConstants()`。
 
-## 功能
+`ViewGroupManager` 默认返回 `null`，Fabric 解析时抛出：
 
-- 地图模式切换（常规、卫星、导航、夜间）
-- 3D 建筑、路况、室内地图
-- 内置地图控件的显示隐藏（指南针、比例尺、定位按钮、缩放按钮）
-- 手势交互控制（平移、缩放、旋转、倾斜）
-- 中心坐标、缩放级别、倾斜度的设置，支持动画过渡
-- 地图事件（onPress、onLongPress、onLocation、onCameraMove、onCameraIdle 等）
-- 地图标记（Marker）
-- 折线绘制（Polyline）
-- 多边形绘制（Polygon）
-- 圆形绘制（Circle）
-- 热力图（HeatMap）
-- 海量点（MultiPoint）
-- 点聚合（Cluster）
+```
+UnexpectedNativeTypeException: expected Array, got a null
+```
 
-## 接口文档
+应用在 JS bundle 加载阶段直接崩溃白屏。
 
-https://qiuxiang.github.io/react-native-amap3d/api/
+本 fork 以最小改动让 react-native-amap3d 在 React Native 0.71+ Fabric 环境下正常运行。
+
+## Fork 修改清单
+
+### Fabric 兼容 — Android 7 个 ViewManager
+
+7 个 ViewManager 覆写 `getExportedCustomDirectEventTypeConstants()`，返回 `emptyMap()`：
+
+| 文件 | 类 | 对应组件 |
+|------|-----|----------|
+| `MapViewManager.kt` | `ViewGroupManager<MapView>` | AMapView |
+| `MarkerManager.kt` | `ViewGroupManager<Marker>` | AMapMarker |
+| `PolylineManager.kt` | `ViewGroupManager<Polyline>` | AMapPolyline |
+| `PolygonManager.kt` | `SimpleViewManager<Polygon>` | AMapPolygon |
+| `CircleManager.kt` | `SimpleViewManager<Circle>` | AMapCircle |
+| `HeatMapManager.kt` | `SimpleViewManager<HeatMap>` | AMapHeatMap |
+| `MultiPointManager.kt` | `SimpleViewManager<MultiPoint>` | AMapMultiPoint |
+
+### 隐私合规初始化
+
+AMap SDK 9.x 要求在任何 API 调用前完成隐私合规设置。在 `MapViewManager.createViewInstance()` 中内联调用：
+
+```kotlin
+MapsInitializer.updatePrivacyAgree(reactContext, true)
+MapsInitializer.updatePrivacyShow(reactContext, true, true)
+AMapLocationClient.updatePrivacyAgree(reactContext, true)
+AMapLocationClient.updatePrivacyShow(reactContext, true, true)
+```
+
+### 手势与 ScrollView 冲突修复
+
+Android (`MapView.kt`) 通过 `setOnTouchListener` 在 `ACTION_DOWN` 时请求父容器不要拦截触摸事件。
+iOS (`MapViewManager.swift`) 在 `didMoveToSuperview()` 中遍历视图树查找父级 `UIScrollView`，将地图手势设为父级 pan gesture 的依赖。
+
+### 新增属性
+
+| 属性 | 平台 | 说明 |
+|------|------|------|
+| `logoEnabled` | Android + iOS | 隐藏高德 logo 水印 |
+| `renderFps` | Android + iOS | 设置地图渲染帧率（30/60） |
+| `routeData` | Android | JSON 坐标数组，自动绘制 geodesic 折线 |
+
+---
 
 ## 安装
 
 ```bash
-npm i react-native-amap3d
+npm install react-native-amap3d-fabric
 ```
 
-### 添加高德 API Key
+### Android
 
-首先你需要获取高德地图 API Key：
+`android/app/src/main/AndroidManifest.xml` 添加：
 
-- [Aandroid](http://lbs.amap.com/api/android-sdk/guide/create-project/get-key)
-- [iOS](https://lbs.amap.com/api/ios-sdk/guide/create-project/get-key)
+```xml
+<application>
+  <meta-data
+    android:name="amap_key"
+    android:value="YOUR_AMAP_KEY" />
+</application>
+```
 
-然后你需要在显示地图前调用接口设置 API key：
+### iOS
 
-```js
-import { AMapSdk } from "react-native-amap3d";
-import { Platform } from "react-native";
-
-AMapSdk.init(
-  Platform.select({
-    android: "c52c7169e6df23490e3114330098aaac",
-    ios: "186d3464209b74effa4d8391f441f14d",
-  })
-);
+```ruby
+pod 'react-native-amap3d-fabric', :path => '../node_modules/react-native-amap3d-fabric'
 ```
 
 ## 用法
 
-### 显示地图
+与原版 react-native-amap3d API 完全兼容，import 路径改为 `react-native-amap3d-fabric`：
 
-```jsx
-import { MapView, MapType } from "react-native-amap3d";
+```tsx
+import { AMapView, MapType } from "react-native-amap3d-fabric";
 
-<MapView
-  mapType={MapType.Satellite}
+<AMapView
+  mapType={MapType.Standard}
   initialCameraPosition={{
-    target: {
-      latitude: 39.91095,
-      longitude: 116.37296,
-    },
+    target: { latitude: 39.91095, longitude: 116.37296 },
     zoom: 8,
   }}
+  logoEnabled={false}
+  renderFps={60}
 />;
 ```
 
-<img src=https://user-images.githubusercontent.com/1709072/140698774-bdbfee64-d403-4e49-9a85-716d44783cfd.png height=500> <img src=https://user-images.githubusercontent.com/1709072/140849895-dada3f51-74c0-4685-b5d6-c1b69a4d06bb.PNG height=500>
+更多示例参考原项目 [example-app](https://github.com/qiuxiang/react-native-amap3d/tree/master/example-app) 及 [接口文档](https://qiuxiang.github.io/react-native-amap3d/api/)。
 
-### 监听地图事件
+## 从原版迁移
 
-```jsx
-import { MapView } from "react-native-amap3d";
+1. `package.json` 中 `react-native-amap3d` → `react-native-amap3d-fabric`
+2. import 路径 `'react-native-amap3d'` → `'react-native-amap3d-fabric'`
+3. `android/settings.gradle` 中无需手动 include（autolinking 自动处理）
 
-<MapView
-  onLoad={() => console.log("onLoad")}
-  onPress={({ nativeEvent }) => console.log(nativeEvent)}
-  onCameraIdle={({ nativeEvent }) => console.log(nativeEvent)}
-/>;
-```
+## 兼容性
 
-<img src=https://user-images.githubusercontent.com/1709072/140705501-9ed3e038-e52a-48c2-a98a-235c5c890549.png height=500> <img src=https://user-images.githubusercontent.com/1709072/140849894-3add3858-fc7f-47cd-9786-94aeef399ebc.PNG height=500>
-
-### 添加标记
-
-其中 `icon` 支持 [ImageSource](https://reactnative.dev/docs/image#imagesource)。
-
-同时支持 `children` 作为标记图标。
-
-```jsx
-import { MapView, Marker } from "react-native-amap3d";
-
-<MapView>
-  <Marker
-    position={{ latitude: 39.806901, longitude: 116.397972 }}
-    icon={require("../images/flag.png")}
-    onPress={() => alert("onPress")}
-  />
-  <Marker
-    position={{ latitude: 39.806901, longitude: 116.297972 }}
-    icon={{
-      uri: "https://reactnative.dev/img/pwa/manifest-icon-512.png",
-      width: 64,
-      height: 64,
-    }}
-  />
-  <Marker position={{ latitude: 39.906901, longitude: 116.397972 }}>
-    <Text
-      style={{
-        color: "#fff",
-        backgroundColor: "#009688",
-        alignItems: "center",
-        borderRadius: 5,
-        padding: 5,
-      }}
-    >
-      {new Date().toLocaleString()}
-    </Text>
-  </Marker>
-</MapView>;
-```
-
-<img src=https://user-images.githubusercontent.com/1709072/140707579-4abe070a-3fc1-481d-8a2e-91ac2ad8bdc7.png height=500> <img src=https://user-images.githubusercontent.com/1709072/140849886-7eb9322b-8fa8-4049-a7b0-3eb36d006992.PNG height=500>
-
-### 点聚合
-
-Marker 数量过多（尤其是使用自定义 View 的情况下）会导致性能问题，而且显示过于密集，这时候可以用点聚合改善。
-
-```jsx
-import { Cluster, MapView, Marker } from "react-native-amap3d";
-
-const markers = Array(1000)
-  .fill(0)
-  .map((_, i) => ({
-    position: { latitude: 39.5 + Math.random(), longitude: 116 + Math.random() },
-    properties: { key: `Marker${i}` },
-  }));
-
-<MapView
-  ref={(ref) => (this.mapView = ref)}
-  onLoad={() => this.mapView?.moveCamera({ zoom: 8 }, 100)}
-  onCameraIdle={({ nativeEvent }) => {
-    this.status = nativeEvent;
-    this.cluster?.update(nativeEvent);
-  }}
->
-  <Cluster
-    ref={(ref) => (this.cluster = ref)}
-    points={markers}
-    renderMarker={(item) => (
-      <Marker
-        key={item.properties.key}
-        icon={require("../images/flag.png")}
-        position={item.position}
-      />
-    )}
-  />
-</MapView>;
-```
-
-<img src=https://user-images.githubusercontent.com/1709072/140710764-40f767cd-74fd-47ca-8310-897bbf58fbbd.png height=500> <img src=https://user-images.githubusercontent.com/1709072/140849888-6b6609c1-2e55-41c2-bdc3-f9d3fcc7a112.PNG height=500>
-
-<img src=https://user-images.githubusercontent.com/1709072/140710758-63e81ade-2635-4412-a5fa-b6948605fe75.png height=500> <img src=https://user-images.githubusercontent.com/1709072/140849880-9eb7609d-55a7-43be-8b6a-bac725fb0a82.PNG height=500>
-
-### 更多示例
-
-参考 [example](https://github.com/qiuxiang/react-native-amap3d/tree/master/example-app)。
+| React Native | AMap SDK (Android) | AMap SDK (iOS) | 状态 |
+|--------------|-------------------|----------------|------|
+| 0.71+ (Fabric) | 9.6.0 | 9.6.2 | ✅ 验证通过 |
+| 0.71+ (Paper) | 9.6.0 | 9.6.2 | 未测试 |
 
 ## 常见问题
 
-- 尽量使用真实设备进行测试，在模拟器可能存在一些问题（常见的是 Android 模拟器因为缺少 GPU 加速而导致闪退）。
-- onLocation 没有返回定位数据通常是因为 key 不正确，或没有申请 PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION 权限
+- 尽量使用真实设备测试，模拟器可能存在 GPU 相关闪退
+- onLocation 无数据通常是因为 key 配置错误或未申请定位权限
+- API Key 可通过 AndroidManifest `amap_key` meta-data 配置，或调用 `AMapSdk.init(apiKey)` 设置
 
-[npm]: https://www.npmjs.com/package/react-native-amap3d
-[version-badge]: https://img.shields.io/npm/v/react-native-amap3d.svg
+## 许可证
+
+MIT License — 原始工作 Copyright (c) 2023 7c00，Fork 修改 Copyright (c) 2026 Contributors。
+
+[npm]: https://www.npmjs.com/package/react-native-amap3d-fabric
+[version-badge]: https://img.shields.io/npm/v/react-native-amap3d-fabric.svg

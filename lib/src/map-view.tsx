@@ -57,6 +57,16 @@ export interface MapViewProps extends ViewProps {
   zoomControlsEnabled?: boolean;
 
   /**
+   * 是否显示高德地图 logo 水印
+   */
+  logoEnabled?: boolean;
+
+  /**
+   * 设置地图渲染帧率（如 30/60）
+   */
+  renderFps?: number;
+
+  /**
    * 是否显示比例尺
    */
   scaleControlsEnabled?: boolean;

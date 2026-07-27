@@ -75,4 +75,8 @@ internal class MarkerManager : ViewGroupManager<Marker>() {
   fun setIcon(view: Marker, icon: ReadableMap?) {
     icon?.let { view.setIcon(it) }
   }
+  // Fabric compatibility
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
+  }
 }

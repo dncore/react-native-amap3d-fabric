@@ -46,4 +46,12 @@ internal class CircleManager : SimpleViewManager<Circle>() {
   fun setIndex(circle: Circle, zIndex: Float) {
     circle.zIndex = zIndex
   }
+  override fun getCommandsMap(): Map<String, Int> {
+    return emptyMap()
+  }
+
+  // Fabric compatibility
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
+  }
 }

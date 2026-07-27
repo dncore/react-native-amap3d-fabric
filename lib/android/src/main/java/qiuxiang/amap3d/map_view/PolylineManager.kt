@@ -1,7 +1,7 @@
 package qiuxiang.amap3d.map_view
 
 import com.facebook.react.bridge.ReadableArray
-import com.facebook.react.uimanager.SimpleViewManager
+import com.facebook.react.uimanager.ViewGroupManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
 import qiuxiang.amap3d.getEventTypeConstants
@@ -9,7 +9,7 @@ import qiuxiang.amap3d.toLatLngList
 import qiuxiang.amap3d.toPx
 
 @Suppress("unused")
-internal class PolylineManager : SimpleViewManager<Polyline>() {
+internal class PolylineManager : ViewGroupManager<Polyline>() {
   override fun getName(): String {
     return "AMapPolyline"
   }
@@ -60,5 +60,12 @@ internal class PolylineManager : SimpleViewManager<Polyline>() {
   @ReactProp(name = "gradient")
   fun setGradient(polyline: Polyline, gradient: Boolean) {
     polyline.gradient = gradient
+  }
+  override fun getCommandsMap(): Map<String, Int> {
+    return emptyMap()
+  }
+
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
   }
 }

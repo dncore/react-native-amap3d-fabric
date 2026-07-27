@@ -22,6 +22,10 @@ internal class MapViewManager : ViewGroupManager<MapView>() {
   }
 
   override fun createViewInstance(reactContext: ThemedReactContext): MapView {
+    com.amap.api.maps.MapsInitializer.updatePrivacyAgree(reactContext, true)
+    com.amap.api.maps.MapsInitializer.updatePrivacyShow(reactContext, true, true)
+    com.amap.api.location.AMapLocationClient.updatePrivacyAgree(reactContext, true)
+    com.amap.api.location.AMapLocationClient.updatePrivacyShow(reactContext, true, true)
     return MapView(reactContext)
   }
 
@@ -61,6 +65,11 @@ internal class MapViewManager : ViewGroupManager<MapView>() {
     )
   }
 
+  // Fabric: prevent "expected Array, got a null" crash
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
+  }
+
   @ReactProp(name = "initialCameraPosition")
   fun setInitialCameraPosition(view: MapView, position: ReadableMap) {
     view.setInitialCameraPosition(position)
@@ -84,6 +93,16 @@ internal class MapViewManager : ViewGroupManager<MapView>() {
   @ReactProp(name = "compassEnabled")
   fun setCompassEnabled(view: MapView, show: Boolean) {
     view.map.uiSettings.isCompassEnabled = show
+  }
+
+  @ReactProp(name = "logoEnabled")
+  fun setLogoEnabled(view: MapView, enabled: Boolean) {
+    view.setLogoEnabled(enabled)
+  }
+
+  @ReactProp(name = "renderFps")
+  fun setRenderFps(view: MapView, fps: Int) {
+    view.setRenderFps(fps)
   }
 
   @ReactProp(name = "zoomControlsEnabled")
@@ -149,5 +168,11 @@ internal class MapViewManager : ViewGroupManager<MapView>() {
   @ReactProp(name = "cameraPosition")
   fun setCameraPosition(view: MapView, center: ReadableMap) {
     view.map.moveCamera(CameraUpdateFactory.changeLatLng(center.toLatLng()))
+  }
+
+
+  @ReactProp(name = "routeData")
+  fun setRouteData(view: MapView, json: String) {
+    view.setRouteData(json)
   }
 }

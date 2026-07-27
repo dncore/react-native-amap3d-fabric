@@ -32,6 +32,25 @@ class MapView: MAMapView, MAMapViewDelegate {
   var overlayMap: [MABaseOverlay: Overlay] = [:]
   var markerMap: [MAPointAnnotation: Marker] = [:]
 
+  override func didMoveToSuperview() {
+    super.didMoveToSuperview()
+    // Walk up the view tree to find the parent UIScrollView (RCTScrollView)
+    // and make its pan gesture recognizer depend on the map's gesture
+    // recognizers failing first. This gives the map priority for all
+    // touches on its area — pan, pinch, rotate all work; the outer
+    // ScrollView only scrolls when the map does NOT handle the gesture.
+    var parentView: UIView? = superview
+    while parentView != nil {
+      if let scrollView = parentView as? UIScrollView {
+        for mapGR in gestureRecognizers ?? [] {
+          scrollView.panGestureRecognizer.require(toFail: mapGR)
+        }
+        break
+      }
+      parentView = parentView?.superview
+    }
+  }
+
   @objc var onLoad: RCTBubblingEventBlock = { _ in }
   @objc var onCameraMove: RCTBubblingEventBlock = { _ in }
   @objc var onCameraIdle: RCTBubblingEventBlock = { _ in }
@@ -40,6 +59,20 @@ class MapView: MAMapView, MAMapViewDelegate {
   @objc var onLongPress: RCTBubblingEventBlock = { _ in }
   @objc var onLocation: RCTBubblingEventBlock = { _ in }
   @objc var onCallback: RCTBubblingEventBlock = { _ in }
+
+  @objc func setLogoEnabled(_ enabled: Bool) {
+    if !enabled {
+      // Move the AMap logo off-screen to hide it.
+      // logoCenter controls the logo's anchor point on the map surface.
+      // Do NOT set showMapText=false — that hides all street/place labels.
+      logoCenter = CGPoint(x: -500, y: -500)
+    }
+  }
+
+  @objc func setRenderFps(_ fps: Int) {
+    maxRenderFrame = UInt(fps)
+    isAllowDecreaseFrame = false
+  }
 
   @objc func setInitialCameraPosition(_ json: NSDictionary) {
     if !initialized {

@@ -41,4 +41,12 @@ internal class PolygonManager : SimpleViewManager<Polygon>() {
   fun setIndex(polygon: Polygon, zIndex: Float) {
     polygon.zIndex = zIndex
   }
+  override fun getCommandsMap(): Map<String, Int> {
+    return emptyMap()
+  }
+
+  // Fabric compatibility
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return emptyMap()
+  }
 }
